@@ -1,0 +1,8 @@
+#! /bin/sh
+
+export SPLOSH_GREP_PATH=$(which grep)
+
+module="$1"
+shift
+
+exec ./splosh-$module $@
