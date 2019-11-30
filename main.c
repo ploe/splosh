@@ -25,7 +25,6 @@ typedef struct {
 	ProcessOutput output;
 } Process;
 
-typedef struct 
 
 static void SwapIoFd(int io[2], int pipe_end, int oldfd) {
 	/* Swaps the fd in oldfd with io[pipe_end] and closes the opposite pipe_end */
@@ -106,21 +105,17 @@ String NewString(const char *format, ...) {
 	return str;
 }
 
-String GetIoOutput(int io[2]) {
+String GetIoOutput(int fd) {
 	char buf[1024];
 	ssize_t bytes;
 	String EMPTY_STRING = "", str = EMPTY_STRING;
-	while (bytes = read(io[READ_END], buf, sizeof(buf))) {
-        if (bytes == -1) abort();
-        printf("bytes: %lu\n", bytes);
-		
+	while (bytes = read(fd, buf, sizeof(buf))) {
 		String tmp = NewString("%s%.*s", str, (int) bytes, buf, buf);
 		
         if (str != EMPTY_STRING) free(str);
 		str = tmp;
 
 	}
-
 
 	return (str == EMPTY_STRING) ? NULL : str;
 }
@@ -129,8 +124,8 @@ int CloseProcess(Process *process) {
 	/* Close the Process and collate the data */
 	close(process->stdin[WRITE_END]);
 
-	process->output.stdout = GetIoOutput(process->stdout);
-	process->output.stderr = GetIoOutput(process->stderr);
+	process->output.stdout = GetIoOutput(process->stdout[READ_END]);
+	process->output.stderr = GetIoOutput(process->stderr[READ_END]);
 	waitpid(process->pid, &process->output.status, 0);
 
 	return process->output.status;
@@ -163,24 +158,16 @@ int main(int argc, char *argv[]) {
 
 	ParseArgs(argc, argv);
 
-	char msg[] =
-	    "hihelo\n"
-	    "hihelo\n"
-	    "hihelo\n"
-	    "hihelo\n"
-	    "hihelo\n"
-	    "hihelo\n"
-	    "hihelo\n"
-	    "hihelo\n";
+    String msg = GetIoOutput(STDIN_FILENO);
 
 	WriteToProcess(&process, msg);
 	CloseProcess(&process);
 
-	char *green = "\x1B[32m" "[user@host cluster:method 2019:09:17:03:13:08] %s" "\x1B[0m";
-	char *red = "\x1B[31m%s\x1B[0m";
+	const char *GREEN_TEXT = "\x1B[32m" "%s" "\x1B[0m";
+	const char *RED_TEXT = "\x1B[31m" "%s" "\x1B[0m";
 
-	fprintf(stdout, green, process.output.stdout);
-	fprintf(stderr, red, process.output.stderr);
+	fprintf(stdout, GREEN_TEXT, process.output.stdout);
+	fprintf(stderr, RED_TEXT, process.output.stderr);
 
 	return process.output.status;
 }
